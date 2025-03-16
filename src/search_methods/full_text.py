@@ -12,7 +12,7 @@ def search(query: str):
     start_time = time.time()
 
     # Lấy tất cả dữ liệu từ bảng WebScrapData
-    response1 = supabase.table("WebScrapData").select("name").execute()
+    response = supabase.table("WebScrapData").select("name").execute()
 
     # Kiểm tra dữ liệu trả về
     if not response.data:

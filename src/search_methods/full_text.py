@@ -3,6 +3,8 @@ from rank_bm25 import BM25Okapi
 import time
 
 def search(query: str):
+
+    ##########
     # Khởi tạo Supabase client
     supabase = get_supabase_client()
 
@@ -10,7 +12,7 @@ def search(query: str):
     start_time = time.time()
 
     # Lấy tất cả dữ liệu từ bảng WebScrapData
-    response = supabase.table("WebScrapData").select("name").execute()
+    response1 = supabase.table("WebScrapData").select("name").execute()
 
     # Kiểm tra dữ liệu trả về
     if not response.data:

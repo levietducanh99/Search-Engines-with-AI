@@ -27,7 +27,7 @@ def search(query: str):
 
 if __name__ == "__main__":
     # Test phương pháp Exact Match với bảng WebScrapData
-    query = "dog"
+    query = "book"
     results, execution_time = search(query)
     print("Exact Match Results from WebScrapData:")
     for result in results:

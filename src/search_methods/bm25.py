@@ -3,7 +3,8 @@ from rank_bm25 import BM25Okapi
 import time
 from typing import List, Tuple
 
-def search(query: str) -> Tuple[List[dict], float]:
+
+def search(query: str) -> Tuple[List[Tuple[dict, float]], float]:
     # Khởi tạo Supabase client
     supabase = get_supabase_client()
 
@@ -34,13 +35,13 @@ def search(query: str) -> Tuple[List[dict], float]:
     scores = bm25.get_scores(tokenized_query)
 
     # Kết hợp điểm số với dữ liệu gốc
-    ranked_results = [(score, response.data[i]) for i, score in enumerate(scores)]
-    
-    # Sắp xếp theo score (giảm dần), chỉ so sánh phần score
-    ranked_results.sort(key=lambda x: x[0], reverse=True)
+    ranked_results = [(response.data[i], score) for i, score in enumerate(scores)]
 
-    # Lấy danh sách kết quả đã sắp xếp, lọc các kết quả có điểm > 0
-    final_results = [result for score, result in ranked_results if score > 0]
+    # Sắp xếp theo score (giảm dần)
+    ranked_results.sort(key=lambda x: x[1], reverse=True)
+
+    # Lấy danh sách kết quả đã sắp xếp, chỉ giữ các kết quả có điểm > 0
+    final_results = [(result, score) for result, score in ranked_results if score > 0]
 
     # Đo thời gian kết thúc toàn bộ quá trình
     end_time = time.time()
@@ -48,11 +49,12 @@ def search(query: str) -> Tuple[List[dict], float]:
 
     return final_results, execution_time
 
+
 if __name__ == "__main__":
     # Test phương pháp BM25 với bảng WebScrapData
-    query = "with Product"
+    query = "Book"
     results, execution_time = search(query)
     print("BM25 Search Results from WebScrapData:")
-    for result in results:
-        print(f"Headline: {result['headline']}")
+    for result, score in results:
+        print(f"BM25 Score: {score:.4f} | Headline: {result['headline']}")
     print(f"Thời gian thực thi: {execution_time:.4f} giây")

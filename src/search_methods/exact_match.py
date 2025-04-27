@@ -25,11 +25,11 @@ def search(query: str):
     return response.data, execution_time
 
 
-if __name__ == "__main__":
-    # Test phương pháp Exact Match với bảng WebScrapData
-    query = "Product"
-    results, execution_time = search(query)
-    print("Exact Match Results from WebScrapData:")
-    for result in results:
-        print(f"Name: {result['name']}")
-    print(f"Thời gian thực thi: {execution_time:.4f} giây")
+# if __name__ == "__main__":
+#     # Test phương pháp Exact Match với bảng WebScrapData
+#     query = "Product"
+#     results, execution_time = search(query)
+#     print("Exact Match Results from WebScrapData:")
+#     for result in results:
+#         print(f"Name: {result['name']}")
+#     print(f"Thời gian thực thi: {execution_time:.4f} giây")

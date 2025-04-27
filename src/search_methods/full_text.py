@@ -9,6 +9,7 @@ def search(query: str):
     supabase = get_supabase_client()
 
     # Đo thời gian bắt đầu
+    start_time = time.time()
 
     # Lấy tất cả dữ liệu từ bảng WebScrapData
     response = supabase.table("WebScrapData").select("name").execute()

@@ -22,7 +22,8 @@ def search(query: str):
     if not response.data:
         return [], execution_time
 
-    return response.data, execution_time
+    results = [{"headline": row["headline"]} for row in response.data]
+    return results, execution_time
 
 
 if __name__ == "__main__":

@@ -122,4 +122,4 @@ def run_analysis(file_path):
     word_frequency_analysis(df)
 
 # Chạy phân tích với file CSV
-run_analysis("E:/SearchEngines/data/analysis/WebScrapData_rows.csv")
+run_analysis("WebScrapData_rows.csv")

@@ -10,7 +10,7 @@ def search(query: str):
     start_time = time.time()
 
     # Tìm kiếm giá trị trong cột name của bảng WebScrapData
-    response = supabase.table("WebScrapData").select("name").ilike("name", f"%{query}%").execute()
+    response = supabase.table("WebScrapData").select("headline").ilike("headline", f"%{query}%").execute()
 
     # Đo thời gian kết thúc
     end_time = time.time()
@@ -22,7 +22,9 @@ def search(query: str):
     if not response.data:
         return [], execution_time
 
-    return response.data, execution_time
+    results = [{"headline": row["headline"]} for row in response.data]
+    return results, execution_time
+
 
 
 # if __name__ == "__main__":
@@ -33,3 +35,4 @@ def search(query: str):
 #     for result in results:
 #         print(f"Name: {result['name']}")
 #     print(f"Thời gian thực thi: {execution_time:.4f} giây")
+

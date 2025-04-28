@@ -12,7 +12,7 @@ structure = {
                 "migrations": ["001_create_articles.sql", "002_add_keywords.sql", "003_add_vectors.sql"],
                 "queries": ["exact_match.sql", "full_text.sql", "fuzzy_search.sql", "semantic_search.sql"]
             },
-            "search_methods": ["exact_match.py", "keyword_extract.py", "full_text.py", "fuzzy_search.py", "synonym_search.py", "semantic_search.py"],
+            "search_methods": ["exact_match.py", "keyword_search.py", "full_text.py", "fuzzy_search.py", "synonym_search.py", "semantic_search.py"],
             "utils": ["db_connect.py", "preprocess.py", "evaluate.py"]
         },
         "supabase": ["config.toml", "docker-compose.yml"],

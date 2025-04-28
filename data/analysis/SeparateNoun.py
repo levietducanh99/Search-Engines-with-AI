@@ -3,7 +3,7 @@ import spacy
 
 # ------------------- Bước 1: Kết nối Supabase -------------------
 url = "https://mlkqujqhrzvibontqatq.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sa3F1anFocnp2aWJvbnRxYXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE2MjQzMDIsImV4cCI6MjA1NzIwMDMwMn0.-3X1fc9Xdo-2YSyR4lVkwxMV5N5-qc-cS3FMq63RVR0"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sa3F1anFocnp2aWJvbnRxYXRxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MTYyNDMwMiwiZXhwIjoyMDU3MjAwMzAyfQ.9GKUKNB2qqFiH6pn_f6NBZqdJsuVHtNjUNhQZy5IEBE"
 supabase: Client = create_client(url, key)
 
 table_name = "WebScrapData"
@@ -18,7 +18,7 @@ def extract_named_entities(text):
     return entities
 
 # ------------------- Bước 3: Lấy dữ liệu titles -------------------
-response = supabase.table(table_name).select("id, headline").limit(20).execute()
+response = supabase.table(table_name).select("id, headline").execute()
 
 if response.data:
     for item in response.data:
@@ -28,9 +28,14 @@ if response.data:
         # ------------------- Bước 4: Tách tên riêng -------------------
         named_entities = extract_named_entities(title)
 
-        print(f"ID: {id} | Title: {title}")
-        print(f"Named Entities: {named_entities}")
-        print("-" * 40)
+        # ------------------- Bước 5: Cập nhật vào Supabase -------------------
+        update_data = {
+            "keywords_proper_nouns": named_entities
+        }
 
-    else:
-        print("⚠️ Không tìm thấy dữ liệu trong bảng.")
+        update_response = supabase.table(table_name).update(update_data).eq("id", id).execute()
+
+
+    print("✅ Đã tách và cập nhật xong !")
+else:
+    print("⚠️ Không tìm thấy dữ liệu trong bảng.")

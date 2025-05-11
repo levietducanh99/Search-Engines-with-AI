@@ -10,6 +10,8 @@ def search(query: str):
 
     # Đo thời gian bắt đầu
     start_time = time.time()
+
+
     # Lấy tất cả dữ liệu từ bảng WebScrapData
     response = supabase.table("WebScrapData").select("name").execute()
 

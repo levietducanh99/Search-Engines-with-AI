@@ -1,19 +1,19 @@
 import time  # Import time module
-from src.utils.db_connect import get_supabase_client  # Import get_supabase_client function
 from tests.vectorize import vectorize_texts, calculate_cosine_similarity
 import pandas as pd
 import numpy as np
 import ast
+from sentence_transformers import SentenceTransformer
 
-# Initialize Supabase client
-supabase = get_supabase_client()
 
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 def compare_with_csv(input_text, csv_file):
     start_time = time.time()  # Start timing
 
     # Vector hóa chuỗi đầu vào
-    input_vector = vectorize_texts(input_text)
+    input_vector = embedder.encode(input_text, convert_to_tensor=True)
+
 
     # Đọc file CSV
     df = pd.read_csv(csv_file)
@@ -41,26 +41,27 @@ def compare_with_csv(input_text, csv_file):
     return similarities
 
 
-def query_supabase_by_ids(table_name, ids):
+def query_csv_by_ids(csv_file, ids):
     try:
-        # Truy vấn Supabase với điều kiện id trong danh sách ids
-        response = supabase.table(table_name).select("id, headline, short_description").in_("id", ids).execute()
+        # Đọc dữ liệu từ file CSV
+        df = pd.read_csv(csv_file)
 
-        # Kiểm tra dữ liệu trả về
-        if response.data:
-            return response.data
-        else:
-            print(f"No data found for IDs {ids} in table {table_name}")
-            return []
+        # Lọc các dòng có ID nằm trong danh sách ids
+        filtered_df = df[df['id'].isin(ids)]
+
+        # Lấy các trường cần thiết: id, headline, short_description
+        results = filtered_df[['id', 'headline', 'short_description']].to_dict(orient='records')
+
+        return results
 
     except Exception as e:
-        print(f"Error occurred: {str(e)}")
+        print(f"Error occurred while reading CSV: {str(e)}")
         return None
 
 
 # Ví dụ sử dụng
 if __name__ == "__main__":
-    table_name = "WebScrapData"  # Tên bảng trong Supabase
+    data_csv = "data_test/WebScrapData_rows.csv"
     input_text = "NRA TV Host Chides Mark Hamill: What If Galactic Republic Outlawed Lightsabers?"
     csv_file_path = "data_test/database.csv"
 
@@ -75,8 +76,7 @@ if __name__ == "__main__":
             print(f"ID: {result['id']}, Similarity: {result['similarity']:.4f}")
 
         # Bước 2: Truy vấn Supabase với danh sách ID
-        results = query_supabase_by_ids(table_name, ids[:5])  # Lấy top 5 ID
-
+        results = query_csv_by_ids(data_csv, ids[:5])  # Lấy top 5 ID
         if results:
             print("\nSupabase query results:")
             for row in results:

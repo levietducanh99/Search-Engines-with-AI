@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.utils.data
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 import os
 import pickle
@@ -29,8 +30,12 @@ def train(data_path, save_dir, batch_size=32, hidden_dim=256,
 
     # Load and clean data
     print("Loading and cleaning data...")
-    titles, labels = load_data(data_path)
+    titles, labels, categories_dict = load_data(data_path)
     titles = clean_data(titles)
+
+    # Get number of output classes
+    num_classes = len(categories_dict)
+    print(f"Training model with {num_classes} categories")
 
     # Filter very long titles
     filtered_titles = []
@@ -49,8 +54,8 @@ def train(data_path, save_dir, batch_size=32, hidden_dim=256,
 
     # Split dataset
     train_inputs, val_test_inputs, train_masks, val_test_masks, train_labels, val_test_labels = train_test_split(
-        input_ids, attention_masks, labels, 
-        test_size=0.2, random_state=42, 
+        input_ids, attention_masks, labels,
+        test_size=0.2, random_state=42,
         stratify=labels
     )
 
@@ -74,26 +79,22 @@ def train(data_path, save_dir, batch_size=32, hidden_dim=256,
     print("Loading BERT model...")
     bert_model, embedding_dim = create_bert_embeddings_layer(bert_model_name, freeze_bert=True)
 
-    # Initialize model
-    net = BERTClassifier(bert_model, 4, hidden_dim, seq_length)
+    # Initialize model with the correct number of output classes
+    net = BERTClassifier(bert_model, num_classes, hidden_dim, seq_length)
 
-    # Loss and optimizer
-    criterion = nn.CrossEntropyLoss()
-    # Use AdamW optimizer for BERT fine-tuning
-    optimizer = torch.optim.AdamW(net.parameters(), lr=lr, eps=1e-8)
-
-    # Move model to GPU if available
     if train_on_gpu:
         net.cuda()
 
-    # Training parameters
-    clip = 5  # gradient clipping
+    # Loss and optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
-    # Training loop
-    net.train()
+    # Training
     counter = 0
+    net.train()
     for e in range(epochs):
-        # Batch loop
+        train_losses = []
+
         for inputs, masks, labels in train_loader:
             counter += 1
 
@@ -106,53 +107,62 @@ def train(data_path, save_dir, batch_size=32, hidden_dim=256,
             # Forward pass
             output = net(inputs, attention_mask=masks)
 
-            # Calculate loss and backprop
+            # Calculate loss
             loss = criterion(output, labels)
-            loss.backward()
+            train_losses.append(loss.item())
 
-            # Clip gradients
-            nn.utils.clip_grad_norm_(net.parameters(), clip)
+            # Backward pass
+            loss.backward()
 
             # Update weights
             optimizer.step()
 
-            # Print statistics
+            # Print training status
             if counter % print_every == 0:
-                # Get validation loss
-                val_losses = []
                 net.eval()
+
+                # Validation pass
+                val_losses = []
+                val_correct = 0
                 for val_inputs, val_masks, val_labels in valid_loader:
                     if train_on_gpu:
                         val_inputs, val_masks, val_labels = val_inputs.cuda(), val_masks.cuda(), val_labels.cuda()
 
                     val_output = net(val_inputs, attention_mask=val_masks)
                     val_loss = criterion(val_output, val_labels)
-
                     val_losses.append(val_loss.item())
 
+                    # Calculate accuracy
+                    val_pred = torch.argmax(val_output, dim=1)
+                    val_correct += torch.sum(val_pred == val_labels).item()
+
+                val_acc = val_correct / len(valid_loader.dataset)
+
                 net.train()
-                print(f"Epoch: {e + 1}/{epochs}... "
-                      f"Step: {counter}... "
-                      f"Loss: {loss.item():.6f}... "
-                      f"Val Loss: {np.mean(val_losses):.6f}")
+                print(f"Epoch: {e + 1}/{epochs}...")
+                print(f"Step: {counter}...")
+                print(f"Loss: {np.mean(train_losses):.4f}...")
+                print(f"Val Loss: {np.mean(val_losses):.4f}")
+                print(f"Val Accuracy: {val_acc:.4f}")
 
-    # Test the model
-    test_model(net, test_loader, criterion, train_on_gpu)
+    # Test the final model
+    test_acc = test_model(net, test_loader, criterion, train_on_gpu)
 
-    # Save the model and tokenizer
+    # Save the model, tokenizer info, and categories dictionary
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     save_path = os.path.join(save_dir, 'bert_news_classifier_model.pt')
     torch.save(net, save_path)
-    
-    # Save tokenizer info
+
+    # Save tokenizer info and categories
     tokenizer_info = {
         'bert_model_name': bert_model_name,
-        'max_length': seq_length
+        'max_length': seq_length,
+        'categories_dict': categories_dict
     }
     with open(os.path.join(save_dir, 'bert_tokenizer_info.pkl'), 'wb') as f:
         pickle.dump(tokenizer_info, f)
-        
+
     print(f"Model saved to {save_path}")
 
     return net, tokenizer
@@ -192,3 +202,22 @@ def test_model(net, test_loader, criterion, train_on_gpu):
     print(f"Test accuracy: {test_acc:.3f}")
 
     return test_acc
+
+
+if __name__ == "__main__":
+    # This allows you to run training directly by running this file
+    data_path = "G:\\AI\\Search-Engines-with-AI\\classification\\category.csv"
+    save_dir = "models"
+
+    # You can adjust these parameters as needed
+    train(
+        data_path=data_path,
+        save_dir=save_dir,
+        batch_size=16,  # Smaller batch size if memory is an issue
+        hidden_dim=256,
+        seq_length=64,
+        epochs=3,
+        lr=2e-5,
+        print_every=50,
+        bert_model_name="bert-base-uncased"
+    )

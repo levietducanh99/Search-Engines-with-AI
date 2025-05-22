@@ -2,23 +2,97 @@ import pandas as pd
 import numpy as np
 import re
 import torch
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def load_data(file_path):
-    """Load news title data from Excel file"""
-    df = pd.read_excel(file_path)
-    titles = df['News Title']
-    labels = df['Category']
+    """Load news data from CSV or Excel file"""
+    # Check file extension to determine format
+    if file_path.endswith('.csv'):
+        try:
+            # First attempt with strict parsing
+            df = pd.read_csv(
+                file_path,
+                engine='python',
+                quotechar='"',
+                escapechar='\\',  # Handle escaped quotes
+                on_bad_lines='skip',  # Skip problematic rows
+                header=None,          # No header in your file
+                names=['headline', 'category', 'id']  # Column names
+            )
+            logger.info(f"Successfully loaded CSV file with {len(df)} rows")
+        except Exception as e:
+            logger.warning(f"First parsing attempt failed: {e}. Trying with more flexible options...")
+            # Second attempt with more flexible parsing
+            df = pd.read_csv(
+                file_path,
+                engine='python',
+                sep=',',
+                quoting=3,  # QUOTE_NONE
+                on_bad_lines='skip',
+                warn_bad_lines=True,
+                header=None,
+                names=['headline', 'category', 'id']
+            )
+            logger.info(f"Loaded CSV file with flexible options: {len(df)} rows")
 
-    # Transform labels to integers
-    dict_labels = {'Entertainment': 0, 'Business': 1, 'Technology': 2, 'Medical': 3}
-    labels = pd.Series(labels).replace(dict_labels)
+        title_column = 'headline'
+        category_column = 'category'
+    else:  # Excel file
+        df = pd.read_excel(file_path)
+        title_column = 'News Title'
+        category_column = 'Category'
 
-    return titles, labels.values
+    # Log sample data for verification
+    logger.info(f"Sample data from loaded file:\n{df.head(3)}")
+    
+    # Check for missing values
+    missing_titles = df[title_column].isna().sum()
+    missing_categories = df[category_column].isna().sum()
+    logger.info(f"Missing titles: {missing_titles}, Missing categories: {missing_categories}")
+    
+    # Remove rows with missing titles or categories
+    df = df.dropna(subset=[title_column, category_column])
+    logger.info(f"After removing missing values: {len(df)} rows")
+    
+    titles = df[title_column]
+    labels = df[category_column]
+
+    # Define all possible categories
+    categories = [
+        'ARTS', 'ARTS & CULTURE', 'BLACK VOICES', 'BUSINESS', 'COLLEGE', 'COMEDY',
+        'CRIME', 'CULTURE & ARTS', 'DIVORCE', 'EDUCATION', 'ENTERTAINMENT',
+        'ENVIRONMENT', 'FIFTY', 'FOOD & DRINK', 'GOOD NEWS', 'GREEN',
+        'HEALTHY LIVING', 'HOME & LIVING', 'IMPACT', 'LATINO VOICES', 'MEDIA',
+        'MONEY', 'PARENTING', 'PARENTS', 'POLITICS', 'QUEER VOICES', 'RELIGION',
+        'SCIENCE', 'SPORTS', 'STYLE', 'STYLE & BEAUTY', 'TASTE', 'TECH',
+        'THE WORLDPOST', 'TRAVEL', 'U.S. NEWS', 'WEDDINGS', 'WEIRD NEWS',
+        'WELLNESS', 'WOMEN', 'WORLD NEWS', 'WORLDPOST'
+    ]
+
+    # Create dictionary mapping categories to integers
+    dict_labels = {category: i for i, category in enumerate(categories)}
+
+    # Convert labels to integers, handling unknown categories
+    processed_labels = []
+    for label in labels:
+        if label in dict_labels:
+            processed_labels.append(dict_labels[label])
+        else:
+            logger.warning(f"Unknown category: {label}, assigning to default (0)")
+            processed_labels.append(0)  # Default to first category
+
+    return titles, np.array(processed_labels), dict_labels
 
 
 def clean_data(titles):
     """Clean the news title data"""
+    # Convert non-string values to strings
+    titles = titles.fillna('').astype(str)
+
     # Lowercase all words
     titles = titles.apply(lambda x: x.lower())
 
@@ -177,3 +251,4 @@ def create_bert_dataset(input_ids, attention_masks, labels):
         attention_masks,
         torch.tensor(labels)
     )
+

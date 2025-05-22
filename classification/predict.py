@@ -8,19 +8,22 @@ from data_loader import clean_shortforms, clean_symbol
 def load_model(model_path, tokenizer_info_path):
     """Load the trained BERT model and tokenizer info"""
     model = torch.load(model_path)
-    
+
     # Load tokenizer info
     with open(tokenizer_info_path, 'rb') as f:
         tokenizer_info = pickle.load(f)
-    
+
     # Load the tokenizer with the same configuration used for training
     tokenizer = BertTokenizer.from_pretrained(tokenizer_info['bert_model_name'])
     max_length = tokenizer_info['max_length']
-    
-    return model, tokenizer, max_length
+
+    # Get categories dictionary if available
+    categories_dict = tokenizer_info.get('categories_dict', None)
+
+    return model, tokenizer, max_length, categories_dict
 
 
-def predict_category(model, text, tokenizer, max_length=64):
+def predict_category(model, text, tokenizer, categories_dict=None, max_length=64):
     """Make a prediction for a single news title using BERT"""
     # Clean and preprocess the text
     text = text.lower()
@@ -37,7 +40,7 @@ def predict_category(model, text, tokenizer, max_length=64):
         truncation=True,
         return_tensors='pt'
     )
-    
+
     input_ids = encoded_text['input_ids']
     attention_mask = encoded_text['attention_mask']
 
@@ -52,7 +55,13 @@ def predict_category(model, text, tokenizer, max_length=64):
     pred = torch.argmax(output, dim=1).item()
 
     # Map prediction to category name
-    categories = {0: 'Entertainment', 1: 'Business', 2: 'Technology', 3: 'Medical'}
+    if categories_dict is None:
+        # Default categories from original model
+        categories = {0: 'Entertainment', 1: 'Business', 2: 'Technology', 3: 'Medical'}
+    else:
+        # Create reverse mapping from integer to category name
+        categories = {v: k for k, v in categories_dict.items()}
+
     return categories[pred]
 
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import torch
 
 
 def load_data(file_path):
@@ -145,3 +146,34 @@ def pad_features(sentences_token, seq_length):
         features[i, -len(row):] = np.array(row)[:seq_length]
 
     return features
+
+
+def encode_titles_for_bert(titles, tokenizer, max_length=64):
+    """
+    Tokenize and encode titles for BERT processing
+    Returns input_ids and attention_masks
+    """
+    # Tokenize all titles
+    encoded_data = tokenizer.batch_encode_plus(
+        titles.tolist(),
+        add_special_tokens=True,
+        return_attention_mask=True,
+        padding='max_length',
+        max_length=max_length,
+        truncation=True,
+        return_tensors='pt'
+    )
+    
+    input_ids = encoded_data['input_ids']
+    attention_masks = encoded_data['attention_mask']
+    
+    return input_ids, attention_masks
+
+
+def create_bert_dataset(input_ids, attention_masks, labels):
+    """Create TensorDataset for BERT inputs"""
+    return torch.utils.data.TensorDataset(
+        input_ids,
+        attention_masks,
+        torch.tensor(labels)
+    )

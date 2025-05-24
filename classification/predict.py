@@ -3,11 +3,23 @@ import numpy as np
 import pickle
 from transformers import BertTokenizer
 from data_loader import clean_shortforms, clean_symbol
+from model import BERTClassifier  # Import BERTClassifier for safe_globals
 
 
 def load_model(model_path, tokenizer_info_path):
     """Load the trained BERT model and tokenizer info"""
-    model = torch.load(model_path)
+    # Add BERTClassifier to safe globals to allow deserialization
+    try:
+        # PyTorch 2.6+ approach
+        torch.serialization.add_safe_globals([BERTClassifier])
+        model = torch.load(model_path)
+    except AttributeError:
+        # Fallback for older PyTorch versions
+        model = torch.load(model_path, weights_only=False)
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        print("Trying alternative loading method...")
+        model = torch.load(model_path, weights_only=False)
 
     # Load tokenizer info
     with open(tokenizer_info_path, 'rb') as f:

@@ -63,11 +63,11 @@ if __name__ == '__main__':
     # main()
 
     # Option 2: Run prediction directly
-    text_to_predict = "Senate passes new healthcare bill"
+    text_to_predict = "Students Are Using Yik Yak To Cheat On Exams"
     run_prediction(
         text=text_to_predict,
-        model_path='models/bert_news_classifier_model.pt',
-        tokenizer_info_path='models/bert_tokenizer_info.pkl'
+        model_path='./models/bert_news_classifier_model.pt',
+        tokenizer_info_path='./models/bert_tokenizer_info.pkl'
     )
 
     # Option 3: Run multiple predictions

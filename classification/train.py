@@ -15,7 +15,7 @@ from model import BERTClassifier
 
 def train(data_path, save_dir, batch_size=32, hidden_dim=256,
           seq_length=64, epochs=3, lr=2e-5, print_every=100,
-          bert_model_name="bert-base-uncased"):
+          bert_model_name="distilbert-base-uncased"):
     """Train the news classification model using BERT embeddings"""
     # Check for GPU
     train_on_gpu = torch.cuda.is_available()
@@ -205,19 +205,19 @@ def test_model(net, test_loader, criterion, train_on_gpu):
 
 
 if __name__ == "__main__":
-    # This allows you to run training directly by running this file
-    data_path = "G:\\AI\\Search-Engines-with-AI\\classification\\category.csv"
+    # Use a relative or correct absolute path for macOS
+    data_path = "./category.csv"  # or "./category.csv" if in same directory
     save_dir = "models"
 
     # You can adjust these parameters as needed
     train(
         data_path=data_path,
         save_dir=save_dir,
-        batch_size=16,  # Smaller batch size if memory is an issue
+        batch_size=64,
         hidden_dim=256,
         seq_length=64,
-        epochs=3,
+        epochs=5,
         lr=2e-5,
         print_every=50,
-        bert_model_name="bert-base-uncased"
+        bert_model_name="distilbert-base-uncased"
     )

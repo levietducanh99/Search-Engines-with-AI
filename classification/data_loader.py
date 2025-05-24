@@ -3,13 +3,20 @@ import numpy as np
 import re
 import torch
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
 def load_data(file_path):
     """Load news data from CSV or Excel file"""
+    # Check if file exists
+    if not os.path.exists(file_path):
+        logger.error(f"File not found: {file_path}")
+        raise FileNotFoundError(f"The file {file_path} does not exist")
+
     # Check file extension to determine format
     if file_path.endswith('.csv'):
         try:
@@ -20,7 +27,7 @@ def load_data(file_path):
                 quotechar='"',
                 escapechar='\\',  # Handle escaped quotes
                 on_bad_lines='skip',  # Skip problematic rows
-                header=None,          # No header in your file
+                header=None,  # No header in your file
                 names=['headline', 'category', 'id']  # Column names
             )
             logger.info(f"Successfully loaded CSV file with {len(df)} rows")
@@ -33,7 +40,6 @@ def load_data(file_path):
                 sep=',',
                 quoting=3,  # QUOTE_NONE
                 on_bad_lines='skip',
-                warn_bad_lines=True,
                 header=None,
                 names=['headline', 'category', 'id']
             )
@@ -48,16 +54,16 @@ def load_data(file_path):
 
     # Log sample data for verification
     logger.info(f"Sample data from loaded file:\n{df.head(3)}")
-    
+
     # Check for missing values
     missing_titles = df[title_column].isna().sum()
     missing_categories = df[category_column].isna().sum()
     logger.info(f"Missing titles: {missing_titles}, Missing categories: {missing_categories}")
-    
+
     # Remove rows with missing titles or categories
     df = df.dropna(subset=[title_column, category_column])
     logger.info(f"After removing missing values: {len(df)} rows")
-    
+
     titles = df[title_column]
     labels = df[category_column]
 

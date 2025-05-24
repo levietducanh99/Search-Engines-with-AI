@@ -1,223 +1,104 @@
-import torch
-import torch.nn as nn
-import torch.utils.data
-from torch.utils.data import TensorDataset, DataLoader
+import os
+import pickle
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-import os
-import pickle
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import classification_report, accuracy_score
+import logging
 
-from data_loader import load_data, clean_data, encode_titles_for_bert, create_bert_dataset
-from embedding_loader import load_bert_tokenizer, create_bert_embeddings_layer
-from model import BERTClassifier
+from data_loader import load_data, clean_data
+from vectorizer import create_tfidf_vectorizer, save_vectorizer
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def train(data_path, save_dir, batch_size=32, hidden_dim=256,
-          seq_length=64, epochs=3, lr=2e-5, print_every=100,
-          bert_model_name="bert-base-uncased"):
-    """Train the news classification model using BERT embeddings"""
-    # Check for GPU
-    train_on_gpu = torch.cuda.is_available()
-    if train_on_gpu:
-        print('Training on GPU')
-    else:
-        print('Training on CPU')
-
-    # Load BERT tokenizer
-    print("Loading BERT tokenizer...")
-    tokenizer = load_bert_tokenizer(bert_model_name)
-
+def train(data_path, save_dir, max_features=10000, ngram_range=(1, 2), alpha=1.0):
+    """
+    Train a Naive Bayes model for news classification
+    
+    Args:
+        data_path: Path to the data file
+        save_dir: Directory to save the model
+        max_features: Maximum number of features for TF-IDF
+        ngram_range: Range of n-grams to consider
+        alpha: Smoothing parameter for Naive Bayes
+        
+    Returns:
+        The trained model and vectorizer
+    """
     # Load and clean data
-    print("Loading and cleaning data...")
+    logger.info("Loading and cleaning data...")
     titles, labels, categories_dict = load_data(data_path)
     titles = clean_data(titles)
-
+    
     # Get number of output classes
     num_classes = len(categories_dict)
-    print(f"Training model with {num_classes} categories")
-
-    # Filter very long titles
-    filtered_titles = []
-    filtered_labels = []
-    for title, label in zip(titles, labels):
-        if len(title.split()) < 100:
-            filtered_titles.append(title)
-            filtered_labels.append(label)
-
-    titles = pd.Series(filtered_titles)
-    labels = np.array(filtered_labels)
-
-    # Tokenize and encode data for BERT
-    print("Encoding data for BERT...")
-    input_ids, attention_masks = encode_titles_for_bert(titles, tokenizer, max_length=seq_length)
-
-    # Split dataset
-    train_inputs, val_test_inputs, train_masks, val_test_masks, train_labels, val_test_labels = train_test_split(
-        input_ids, attention_masks, labels,
-        test_size=0.2, random_state=42,
-        stratify=labels
+    logger.info(f"Training model with {num_classes} categories")
+    
+    # Split the dataset
+    train_titles, test_titles, train_labels, test_labels = train_test_split(
+        titles, labels, test_size=0.2, random_state=42, stratify=labels
     )
-
-    val_inputs, test_inputs, val_masks, test_masks, val_labels, test_labels = train_test_split(
-        val_test_inputs, val_test_masks, val_test_labels,
-        test_size=0.5, random_state=42,
-        stratify=val_test_labels
-    )
-
-    # Create datasets
-    train_data = create_bert_dataset(train_inputs, train_masks, train_labels)
-    val_data = create_bert_dataset(val_inputs, val_masks, val_labels)
-    test_data = create_bert_dataset(test_inputs, test_masks, test_labels)
-
-    # Create DataLoaders
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
-    valid_loader = DataLoader(val_data, shuffle=True, batch_size=batch_size)
-    test_loader = DataLoader(test_data, shuffle=True, batch_size=batch_size)
-
-    # Load BERT model for embeddings
-    print("Loading BERT model...")
-    bert_model, embedding_dim = create_bert_embeddings_layer(bert_model_name, freeze_bert=True)
-
-    # Initialize model with the correct number of output classes
-    net = BERTClassifier(bert_model, num_classes, hidden_dim, seq_length)
-
-    if train_on_gpu:
-        net.cuda()
-
-    # Loss and optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-
-    # Training
-    counter = 0
-    net.train()
-    for e in range(epochs):
-        train_losses = []
-
-        for inputs, masks, labels in train_loader:
-            counter += 1
-
-            if train_on_gpu:
-                inputs, masks, labels = inputs.cuda(), masks.cuda(), labels.cuda()
-
-            # Zero gradients
-            net.zero_grad()
-
-            # Forward pass
-            output = net(inputs, attention_mask=masks)
-
-            # Calculate loss
-            loss = criterion(output, labels)
-            train_losses.append(loss.item())
-
-            # Backward pass
-            loss.backward()
-
-            # Update weights
-            optimizer.step()
-
-            # Print training status
-            if counter % print_every == 0:
-                net.eval()
-
-                # Validation pass
-                val_losses = []
-                val_correct = 0
-                for val_inputs, val_masks, val_labels in valid_loader:
-                    if train_on_gpu:
-                        val_inputs, val_masks, val_labels = val_inputs.cuda(), val_masks.cuda(), val_labels.cuda()
-
-                    val_output = net(val_inputs, attention_mask=val_masks)
-                    val_loss = criterion(val_output, val_labels)
-                    val_losses.append(val_loss.item())
-
-                    # Calculate accuracy
-                    val_pred = torch.argmax(val_output, dim=1)
-                    val_correct += torch.sum(val_pred == val_labels).item()
-
-                val_acc = val_correct / len(valid_loader.dataset)
-
-                net.train()
-                print(f"Epoch: {e + 1}/{epochs}...")
-                print(f"Step: {counter}...")
-                print(f"Loss: {np.mean(train_losses):.4f}...")
-                print(f"Val Loss: {np.mean(val_losses):.4f}")
-                print(f"Val Accuracy: {val_acc:.4f}")
-
-    # Test the final model
-    test_acc = test_model(net, test_loader, criterion, train_on_gpu)
-
-    # Save the model, tokenizer info, and categories dictionary
+    
+    logger.info(f"Train set size: {len(train_titles)}, Test set size: {len(test_titles)}")
+    
+    # Create TF-IDF vectorizer
+    vectorizer = create_tfidf_vectorizer(train_titles, max_features=max_features, ngram_range=ngram_range)
+    
+    # Transform texts to feature vectors
+    logger.info("Transforming texts to TF-IDF feature vectors...")
+    X_train = vectorizer.transform(train_titles)
+    X_test = vectorizer.transform(test_titles)
+    
+    # Train Naive Bayes model
+    logger.info(f"Training Multinomial Naive Bayes model with alpha={alpha}...")
+    model = MultinomialNB(alpha=alpha)
+    model.fit(X_train, train_labels)
+    
+    # Evaluate the model
+    train_pred = model.predict(X_train)
+    train_accuracy = accuracy_score(train_labels, train_pred)
+    logger.info(f"Training accuracy: {train_accuracy:.4f}")
+    
+    test_pred = model.predict(X_test)
+    test_accuracy = accuracy_score(test_labels, test_pred)
+    logger.info(f"Test accuracy: {test_accuracy:.4f}")
+    
+    # Print detailed classification report
+    logger.info("Classification report on test data:")
+    logger.info("\n" + classification_report(test_labels, test_pred))
+    
+    # Save the model and vectorizer
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    save_path = os.path.join(save_dir, 'bert_news_classifier_model.pt')
-    torch.save(net, save_path)
-
-    # Save tokenizer info and categories
-    tokenizer_info = {
-        'bert_model_name': bert_model_name,
-        'max_length': seq_length,
-        'categories_dict': categories_dict
-    }
-    with open(os.path.join(save_dir, 'bert_tokenizer_info.pkl'), 'wb') as f:
-        pickle.dump(tokenizer_info, f)
-
-    print(f"Model saved to {save_path}")
-
-    return net, tokenizer
-
-
-def test_model(net, test_loader, criterion, train_on_gpu):
-    """Test the trained model on test data"""
-    test_losses = []
-    num_correct = 0
-
-    net.eval()
-    # Iterate over test data
-    for inputs, masks, labels in test_loader:
-        if train_on_gpu:
-            inputs, masks, labels = inputs.cuda(), masks.cuda(), labels.cuda()
-
-        # Get predictions
-        output = net(inputs, attention_mask=masks)
-
-        # Calculate loss
-        test_loss = criterion(output, labels)
-        test_losses.append(test_loss.item())
-
-        # Get predictions
-        pred = torch.argmax(output, dim=1)
-
-        # Compare to true labels
-        correct_tensor = pred.eq(labels)
-        correct = np.squeeze(correct_tensor.cpu().numpy() if train_on_gpu else correct_tensor.numpy())
-        num_correct += np.sum(correct)
-
-    # Calculate test accuracy
-    test_acc = num_correct / len(test_loader.dataset)
-
-    # Print test results
-    print(f"Test loss: {np.mean(test_losses):.3f}")
-    print(f"Test accuracy: {test_acc:.3f}")
-
-    return test_acc
-
+    
+    model_path = os.path.join(save_dir, 'naive_bayes_news_classifier.pkl')
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
+    logger.info(f"Model saved to {model_path}")
+    
+    vectorizer_path = os.path.join(save_dir, 'tfidf_vectorizer.pkl')
+    save_vectorizer(vectorizer, vectorizer_path)
+    
+    # Save categories dictionary
+    categories_dict_path = os.path.join(save_dir, 'categories_dict.pkl')
+    with open(categories_dict_path, 'wb') as f:
+        pickle.dump(categories_dict, f)
+    logger.info(f"Categories dictionary saved to {categories_dict_path}")
+    
+    return model, vectorizer, categories_dict
 
 if __name__ == "__main__":
     # This allows you to run training directly by running this file
     data_path = "G:\\AI\\Search-Engines-with-AI\\classification\\category.csv"
     save_dir = "models"
-
-    # You can adjust these parameters as needed
+    
     train(
         data_path=data_path,
         save_dir=save_dir,
-        batch_size=16,  # Smaller batch size if memory is an issue
-        hidden_dim=256,
-        seq_length=64,
-        epochs=3,
-        lr=2e-5,
-        print_every=50,
-        bert_model_name="bert-base-uncased"
+        max_features=10000,
+        ngram_range=(1, 2),
+        alpha=0.1  # Lower alpha often works better for text classification
     )

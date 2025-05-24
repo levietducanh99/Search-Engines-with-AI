@@ -1,14 +1,13 @@
-# create this as predict_headline.py
 from predict import load_model, predict_category
 
-
-def predict_headline(headline, model_path='models/bert_news_classifier_model.pt',
-                     tokenizer_info_path='models/bert_tokenizer_info.pkl'):
-    """Simple function to predict the category of a news headline"""
-    model, tokenizer, max_length, categories_dict = load_model(model_path, tokenizer_info_path)
-    category = predict_category(model, headline, tokenizer, categories_dict, max_length)
+def predict_headline(headline, 
+                    model_path='models/naive_bayes_news_classifier.pkl',
+                    vectorizer_path='models/tfidf_vectorizer.pkl',
+                    categories_dict_path='models/categories_dict.pkl'):
+    """Simple function to predict the category of a news headline using Naive Bayes"""
+    model, vectorizer, categories_dict = load_model(model_path, vectorizer_path, categories_dict_path)
+    category = predict_category(model, headline, vectorizer, categories_dict)
     return category
-
 
 if __name__ == "__main__":
     # You can modify this headline directly in the code

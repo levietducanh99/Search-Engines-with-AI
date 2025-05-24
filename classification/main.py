@@ -3,32 +3,30 @@ import argparse
 from train import train
 from predict import load_model, predict_category, batch_predict
 
-
 def main():
-    parser = argparse.ArgumentParser(description='News Title Classification with BERT')
+    parser = argparse.ArgumentParser(description='News Title Classification with Naive Bayes')
     parser.add_argument('--mode', type=str, default='train', choices=['train', 'predict'],
                         help='Mode: train or predict')
     parser.add_argument('--data_path', type=str, default='data/News Title.xls',
                         help='Path to the data file')
     parser.add_argument('--save_dir', type=str, default='models',
                         help='Directory to save the model')
-    parser.add_argument('--model_path', type=str, default='models/bert_news_classifier_model.pt',
+    parser.add_argument('--model_path', type=str, default='models/naive_bayes_news_classifier.pkl',
                         help='Path to the saved model')
-    parser.add_argument('--tokenizer_info_path', type=str, default='models/bert_tokenizer_info.pkl',
-                        help='Path to the tokenizer information')
-    parser.add_argument('--bert_model', type=str, default='bert-base-uncased',
-                        help='BERT model to use (e.g., bert-base-uncased)')
+    parser.add_argument('--vectorizer_path', type=str, default='models/tfidf_vectorizer.pkl',
+                        help='Path to the saved vectorizer')
+    parser.add_argument('--categories_dict_path', type=str, default='models/categories_dict.pkl',
+                        help='Path to the categories dictionary')
     parser.add_argument('--text', type=str, default='',
                         help='News title to classify')
 
     args = parser.parse_args()
 
     if args.mode == 'train':
-        print('Training model with BERT...')
-        model, tokenizer = train(
+        print('Training Naive Bayes model...')
+        model, vectorizer, categories_dict = train(
             args.data_path,
-            args.save_dir,
-            bert_model_name=args.bert_model
+            args.save_dir
         )
     elif args.mode == 'predict':
         if not args.text:
@@ -36,24 +34,27 @@ def main():
             return
 
         print('Loading model...')
-        model, tokenizer, max_length, categories_dict = load_model(args.model_path, args.tokenizer_info_path)
+        model, vectorizer, categories_dict = load_model(
+            args.model_path, 
+            args.vectorizer_path,
+            args.categories_dict_path
+        )
 
         print('Making prediction...')
-        category = predict_category(model, args.text, tokenizer, categories_dict, max_length)
+        category = predict_category(model, args.text, vectorizer, categories_dict)
         print(f'The news title "{args.text}" is classified as: {category}')
 
-
-def run_prediction(text, model_path='models/bert_news_classifier_model.pt',
-                   tokenizer_info_path='models/bert_tokenizer_info.pkl'):
+def run_prediction(text, model_path='models/naive_bayes_news_classifier.pkl',
+                  vectorizer_path='models/tfidf_vectorizer.pkl',
+                  categories_dict_path='models/categories_dict.pkl'):
     """Run prediction on a single text without command line arguments"""
     print('Loading model...')
-    model, tokenizer, max_length, categories_dict = load_model(model_path, tokenizer_info_path)
+    model, vectorizer, categories_dict = load_model(model_path, vectorizer_path, categories_dict_path)
 
     print('Making prediction...')
-    category = predict_category(model, text, tokenizer, categories_dict, max_length)
+    category = predict_category(model, text, vectorizer, categories_dict)
     print(f'The news title "{text}" is classified as: {category}')
     return category
-
 
 if __name__ == '__main__':
     # You can choose to use command line arguments or run directly
@@ -66,8 +67,9 @@ if __name__ == '__main__':
     text_to_predict = "Senate passes new healthcare bill"
     run_prediction(
         text=text_to_predict,
-        model_path='models/bert_news_classifier_model.pt',
-        tokenizer_info_path='models/bert_tokenizer_info.pkl'
+        model_path='models/naive_bayes_news_classifier.pkl',
+        vectorizer_path='models/tfidf_vectorizer.pkl',
+        categories_dict_path='models/categories_dict.pkl'
     )
 
     # Option 3: Run multiple predictions

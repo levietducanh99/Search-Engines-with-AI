@@ -33,7 +33,6 @@ schema = Schema(
     headline=TEXT(stored=True, analyzer=StemmingAnalyzer()),
     category=KEYWORD(stored=True, commas=True),
     short_description=TEXT(stored=True),
-    keywords=TEXT(stored=True, analyzer=StemmingAnalyzer()),
     keywords_proper_nouns=TEXT(stored=True)
 )
 
@@ -87,7 +86,7 @@ def fetch_documents_from_db():
         with conn.cursor() as cursor:
             # Use the correct table name with quotes
             cursor.execute("""
-                SELECT id, link, headline, category, short_description, keywords, keywords_proper_nouns
+                SELECT id, link, headline, category, short_description, keywords_proper_nouns
                 FROM "WebScrapData_rows"
             """)
             rows = cursor.fetchall()
@@ -99,8 +98,7 @@ def fetch_documents_from_db():
                     "headline": row[2] or "",
                     "category": row[3] or "",
                     "short_description": row[4] or "",
-                    "keywords": row[5] or "",
-                    "keywords_proper_nouns": row[6] or ""
+                    "keywords_proper_nouns": row[5] or ""  # Fixed index from 6 to 5
                 }
                 documents.append(doc)
         
@@ -131,7 +129,6 @@ def index_documents(ix, documents):
                     headline=doc["headline"],
                     category=doc["category"],
                     short_description=doc["short_description"],
-                    keywords=doc["keywords"],
                     keywords_proper_nouns=doc["keywords_proper_nouns"]
                 )
                 success += 1
@@ -171,7 +168,7 @@ def search_documents(query, size=5):
     ix = open_dir(INDEX_DIR)
     with ix.searcher() as searcher:
         # Build parser
-        parser = MultifieldParser(["headline^3", "keywords^2", "short_description"],
+        parser = MultifieldParser(["headline^3", "category", "short_description", "keywords_proper_nouns^2"],
                                   schema=ix.schema,
                                   group=OrGroup)  # default relevance behavior
         parser.remove_plugin_class(PhrasePlugin)  # ensure phrase search works better
@@ -198,7 +195,7 @@ def search_documents(query, size=5):
             print(f"Headline: {hit['headline']}")
             print(f"Category: {hit['category']}")
             print(f"Short description: {hit['short_description']}")
-            print(f"Keywords: {hit['keywords']}")
+            print(f"Keywords Proper Nouns: {hit['keywords_proper_nouns']}")
             print(f"Score: {hit.score}")
             print()
 
@@ -241,3 +238,4 @@ if __name__ == "__main__":
         if query.lower() == 'exit':
             break
         search_documents(query)
+

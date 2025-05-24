@@ -1,19 +1,27 @@
-from typing import List, Tuple
+from typing import List, Dict, Any
 import logging
 import time
+import os
+import asyncio
 from src.models.search_models import (
     SearchRequest,
     UnifiedSearchResponse,
     KeywordSearchResult,
     SemanticSearchResult,
-    CombinedSearchResult
+    CombinedSearchResult,
+    KeywordSearchResponse
 )
 from src.services.query_processor import QueryProcessor
-from src.services.keyword_search import KeywordSearch
 from src.services.semantic_search import SemanticSearch
-from src.services.rrf_merger import RRFMerger
-from src.services.result_ranker import ResultRanker
-import asyncio
+from src.search_methods.rrf import RRFMerger
+
+# Conditional import to handle case when Whoosh index doesn't exist
+try:
+    from src.services.keyword_search import KeywordSearch
+    HAS_WHOOSH_INDEX = True
+except Exception as e:
+    HAS_WHOOSH_INDEX = False
+    logging.warning(f"KeywordSearch initialization will be deferred: {str(e)}")
 
 logger = logging.getLogger(__name__)
 
@@ -21,27 +29,142 @@ class SearchPipeline:
     """
     Pipeline chính điều phối toàn bộ quá trình tìm kiếm
     """
-    def __init__(self):
-        """Khởi tạo pipeline với các thành phần cần thiết"""
+    def __init__(self,
+                 index_dir: str = None,
+                 model_name: str = "all-MiniLM-L6-v2",
+                 vector_path: str = "tests/data_test/vectors.npy",
+                 csv_path: str = "tests/data_test/vectors_clean.csv",
+                 data_path: str = "tests/data_test/WebScrapData_rows.csv"):
+        """
+        Khởi tạo pipeline với các thành phần cần thiết và đường dẫn đến dữ liệu
+
+        Args:
+            index_dir: Đường dẫn đến thư mục chứa index Whoosh
+            model_name: Tên mô hình sentence transformer
+            vector_path: Đường dẫn đến file vectors.npy
+            csv_path: Đường dẫn đến file vectors_clean.csv
+            data_path: Đường dẫn đến file dữ liệu WebScrapData_rows.csv
+        """
+        # Tạo thư mục data nếu chưa tồn tại
+        os.makedirs("data", exist_ok=True)
+
+        # Kiểm tra và điều chỉnh đường dẫn cho Whoosh index
+        if index_dir is None:
+            # Thử các đường dẫn phổ biến
+            possible_index_paths = [
+                "G:\\AI\\Search-Engines-with-AI\\src\\elasticsearch\\whoosh_index",  # Absolute path
+                os.path.join(os.getcwd(), "src", "elasticsearch", "whoosh_index"),  # From current directory
+                os.path.join("src", "elasticsearch", "whoosh_index"),  # Relative path
+                "whoosh_index"  # Just the directory name
+            ]
+
+            for path in possible_index_paths:
+                if os.path.exists(path):
+                    self.index_dir = path
+                    logger.info(f"Found Whoosh index at: {path}")
+                    break
+            else:
+                self.index_dir = "whoosh_index"
+                logger.warning(f"Could not find Whoosh index, using default path: {self.index_dir}")
+        else:
+            self.index_dir = index_dir
+
+        # Xác định đường dẫn đến data_test
+        base_paths = [
+            "G:\\AI\\Search-Engines-with-AI\\tests\\data_test",  # Absolute path
+            os.path.join(os.getcwd(), "tests", "data_test"),     # From current directory
+            "tests/data_test",                                  # Relative path 1
+            "data_test"                                         # Relative path 2
+        ]
+
+        self.base_path = None
+        for path in base_paths:
+            if os.path.exists(path):
+                self.base_path = path
+                logger.info(f"Found test data directory at: {path}")
+                break
+
+        if self.base_path is None:
+            self.base_path = "tests/data_test"
+            logger.warning(f"Could not find test data directory, using default: {self.base_path}")
+
+        # Thiết lập đường dẫn cho files
+        self.vector_path = os.path.join(self.base_path, "vectors.npy")
+        self.csv_path = os.path.join(self.base_path, "vectors_clean.csv")
+        self.data_path = os.path.join(self.base_path, "WebScrapData_rows.csv")
+
+        # Kiểm tra từng file, sử dụng đường dẫn được cung cấp nếu tồn tại
+        if not os.path.exists(self.vector_path) and os.path.exists(vector_path):
+            self.vector_path = vector_path
+
+        if not os.path.exists(self.csv_path) and os.path.exists(csv_path):
+            self.csv_path = csv_path
+
+        if not os.path.exists(self.data_path) and os.path.exists(data_path):
+            self.data_path = data_path
+
+        # Log thông tin đường dẫn cuối cùng
+        logger.info(f"Using vector file: {self.vector_path}")
+        logger.info(f"Using CSV file: {self.csv_path}")
+        logger.info(f"Using data file: {self.data_path}")
+
+        # Khởi tạo các thành phần
         self.query_processor = QueryProcessor()
-        self.keyword_search = KeywordSearch()
-        self.semantic_search = SemanticSearch()
+
+        # Khởi tạo KeywordSearch với xử lý lỗi
+        try:
+            if HAS_WHOOSH_INDEX:
+                self.keyword_search = KeywordSearch(index_dir=self.index_dir)
+                logger.info(f"Keyword search initialized with index: {self.index_dir}")
+            else:
+                self.keyword_search = None
+                logger.warning("Keyword search not available (Whoosh index issue)")
+        except Exception as e:
+            self.keyword_search = None
+            logger.error(f"Failed to initialize keyword search: {str(e)}")
+
+        # Khởi tạo SemanticSearch
+        self.semantic_search = SemanticSearch(
+            model_name=model_name,
+            vector_path=self.vector_path,
+            csv_path=self.csv_path,
+            data_path=self.data_path
+        )
         self.rrf_merger = RRFMerger()
-        self.result_ranker = ResultRanker()
 
     async def execute_search(self, request: SearchRequest) -> UnifiedSearchResponse:
         """
         Thực hiện tìm kiếm thống nhất, trả về 3 danh sách kết quả riêng biệt
+
+        Args:
+            request: SearchRequest chứa truy vấn tìm kiếm và thông tin phân trang
+
+        Returns:
+            UnifiedSearchResponse chứa kết quả tìm kiếm từ khóa, ngữ nghĩa và kết hợp
         """
         total_start_time = time.time()
 
         # Xử lý truy vấn
         processed_query = self.query_processor.process(request.query)
+        logger.info(f"Processed query: '{processed_query}' (original: '{request.query}')")
 
-        # Thực hiện tìm kiếm song song
-        keyword_task = asyncio.create_task(
-            self.keyword_search.search(processed_query)
-        )
+        # Thực hiện tìm kiếm từ khóa (nếu có)
+        if self.keyword_search:
+            keyword_task = asyncio.create_task(
+                self.keyword_search.search(processed_query)
+            )
+        else:
+            # Tạo kết quả trống nếu không có keyword search
+            keyword_task = asyncio.create_task(
+                asyncio.sleep(0, result=KeywordSearchResponse(
+                    results=[],
+                    total=0,
+                    processing_time_ms=0.0
+                ))
+            )
+            logger.warning("Keyword search skipped (not available)")
+
+        # Thực hiện tìm kiếm ngữ nghĩa
         semantic_task = asyncio.create_task(
             self.semantic_search.search(processed_query)
         )
@@ -60,13 +183,10 @@ class SearchPipeline:
             semantic_response.results
         )
 
-        # Sắp xếp và gán thứ hạng
-        ranked_results = self.result_ranker.rank(merged_results)
-
         # Phân trang kết quả RRF
         start_idx = (request.page - 1) * request.page_size
         end_idx = start_idx + request.page_size
-        paginated_results = ranked_results[start_idx:end_idx]
+        paginated_results = merged_results[start_idx:end_idx] if start_idx < len(merged_results) else []
 
         # Tính thời gian xử lý
         rrf_time = (time.time() - rrf_start_time) * 1000
@@ -78,21 +198,104 @@ class SearchPipeline:
             keyword_results=keyword_response.results,
             total_keyword=keyword_response.total,
             keyword_time_ms=keyword_response.processing_time_ms,
-            
+
             # Kết quả tìm kiếm ngữ nghĩa
             semantic_results=semantic_response.results,
             total_semantic=semantic_response.total,
             semantic_time_ms=semantic_response.processing_time_ms,
-            
+
             # Kết quả RRF
             rrf_results=paginated_results,
-            total_rrf=len(ranked_results),
+            total_rrf=len(merged_results),
             rrf_time_ms=rrf_time,
-            
+
             # Thông tin phân trang
             page=request.page,
             page_size=request.page_size,
-            
+
             # Thời gian xử lý tổng
             total_time_ms=total_time
-        ) 
+        )
+
+# Hàm này có thể chạy trực tiếp từ IDE
+async def run_search(query: str, page: int = 1, page_size: int = 10) -> None:
+    """
+    Thực hiện tìm kiếm và hiển thị kết quả trực tiếp (không cần chạy server)
+
+    Args:
+        query: Truy vấn tìm kiếm
+        page: Số trang kết quả (mặc định = 1)
+        page_size: Số kết quả mỗi trang (mặc định = 10)
+    """
+    print("\n" + "=" * 80)
+    print(f"🔍 Tìm kiếm: '{query}'")
+    print("=" * 80)
+
+    try:
+        # Khởi tạo search pipeline
+        pipeline = SearchPipeline()
+
+        # Tạo request
+        request = SearchRequest(query=query, page=page, page_size=page_size)
+
+        # Thực hiện tìm kiếm
+        print("⏳ Đang xử lý tìm kiếm...")
+        results = await pipeline.execute_search(request)
+
+        # Hiển thị thông tin tổng quan
+        print("\n📊 THÔNG TIN TỔNG QUAN:")
+        print(f"- Thời gian xử lý tổng: {results.total_time_ms:.2f}ms")
+        print(f"- Kết quả từ khóa: {results.total_keyword} ({results.keyword_time_ms:.2f}ms)")
+        print(f"- Kết quả ngữ nghĩa: {results.total_semantic} ({results.semantic_time_ms:.2f}ms)")
+        print(f"- Kết quả RRF: {results.total_rrf} ({results.rrf_time_ms:.2f}ms)")
+        print(f"- Trang: {results.page}/{(results.total_rrf + results.page_size - 1) // results.page_size}")
+
+        # Hiển thị kết quả RRF (đã kết hợp và xếp hạng lại)
+        print("\n🏆 KẾT QUẢ ĐÃ XẾP HẠNG LẠI (RRF):")
+        if not results.rrf_results:
+            print("  Không có kết quả phù hợp.")
+        else:
+            for i, result in enumerate(results.rrf_results, 1):
+                print(f"\n{i}. {result.title}")
+                print(f"   ID: {result.id} | Xếp hạng: {result.ranking}")
+                print(f"   BM25: {result.bm25_score:.4f} | Semantic: {result.semantic_score:.4f} | RRF: {result.rrf_score:.4f}")
+
+                if result.content:
+                    # Hiển thị tối đa 200 ký tự của nội dung
+                    content = result.content[:200] + "..." if len(result.content) > 200 else result.content
+                    print(f"   📝 {content}")
+
+                if result.keywords:
+                    print(f"   🔑 Từ khóa: {', '.join(result.keywords)}")
+
+                if result.semantic_context:
+                    print(f"   🧠 Ngữ cảnh: {' | '.join(result.semantic_context)}")
+
+        return results
+
+    except Exception as e:
+        print(f"❌ Lỗi: {str(e)}")
+        logger.error("Error in search pipeline", exc_info=True)
+        return None
+
+# Nếu chạy trực tiếp file này
+if __name__ == "__main__":
+    import sys
+
+    # Thiết lập logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+    # Lấy query từ tham số dòng lệnh hoặc sử dụng mặc định
+    if len(sys.argv) > 1:
+        query = sys.argv[1]
+    else:
+        # Truy vấn mặc định nếu không có tham số
+        query = "Messi leaves Barcelona"
+        print(f"Không có truy vấn, sử dụng truy vấn mặc định: '{query}'")
+
+    # Chạy hàm tìm kiếm
+    asyncio.run(run_search(query))
+

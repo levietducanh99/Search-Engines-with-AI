@@ -92,7 +92,7 @@ def train(data_path, save_dir, max_features=10000, ngram_range=(1, 2), alpha=1.0
 
 if __name__ == "__main__":
     # This allows you to run training directly by running this file
-    data_path = "G:\\AI\\Search-Engines-with-AI\\classification\\category.csv"
+    data_path = "./category.csv"
     save_dir = "models"
     
     train(

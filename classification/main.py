@@ -64,12 +64,12 @@ if __name__ == '__main__':
     # main()
 
     # Option 2: Run prediction directly
-    text_to_predict = "Senate passes new healthcare bill"
+    text_to_predict = "5 August Superfoods To Try This Month"
     run_prediction(
         text=text_to_predict,
-        model_path='models/naive_bayes_news_classifier.pkl',
-        vectorizer_path='models/tfidf_vectorizer.pkl',
-        categories_dict_path='models/categories_dict.pkl'
+        model_path='./models/naive_bayes_news_classifier.pkl',
+        vectorizer_path='./models/tfidf_vectorizer.pkl',
+        categories_dict_path='./models/categories_dict.pkl'
     )
 
     # Option 3: Run multiple predictions

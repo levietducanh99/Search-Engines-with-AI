@@ -1,6 +1,8 @@
-from typing import List, Dict
+from typing import List
+import time
+from src.models.search_models import KeywordSearchResult, KeywordSearchResponse
 
-def keywordSearch(query: str) -> List[Dict]:
+def keywordSearch(query: str) -> KeywordSearchResponse:
     """
     Simulate keyword search results using BM25 scoring.
     
@@ -8,16 +10,12 @@ def keywordSearch(query: str) -> List[Dict]:
         query (str): The search query string
         
     Returns:
-        List[Dict]: List of documents with their BM25 scores and metadata
-        Each document contains:
-        - id: Unique document identifier
-        - title: Document title
-        - bm25_score: BM25 relevance score
-        - keywords: List of matched keywords
-        - matched_count: Number of query terms matched
+        KeywordSearchResponse: Response containing keyword search results
     """
+    start_time = time.time()
+    
     # Simulated keyword search results
-    return [
+    raw_results = [
         {
             "id": "doc1",
             "title": "Introduction to Artificial Intelligence",
@@ -83,3 +81,16 @@ def keywordSearch(query: str) -> List[Dict]:
             "content": "Comprehensive guide to different neural network architectures and their specific use cases."
         }
     ]
+    
+    # Convert to KeywordSearchResult objects
+    results = [KeywordSearchResult(**item) for item in raw_results]
+    
+    # Calculate processing time
+    processing_time = (time.time() - start_time) * 1000
+    
+    # Create and return response
+    return KeywordSearchResponse(
+        results=results,
+        total=len(results),
+        processing_time_ms=processing_time
+    )

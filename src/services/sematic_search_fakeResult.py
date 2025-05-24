@@ -1,6 +1,8 @@
-from typing import List, Dict
+from typing import List
+import time
+from src.models.search_models import SemanticSearchResult, SemanticSearchResponse
 
-def semanticSearch(query: str) -> List[Dict]:
+def semanticSearch(query: str) -> SemanticSearchResponse:
     """
     Simulate semantic search results using embedding-based similarity scoring.
     
@@ -8,16 +10,12 @@ def semanticSearch(query: str) -> List[Dict]:
         query (str): The search query string
         
     Returns:
-        List[Dict]: List of documents with their semantic similarity scores and metadata
-        Each document contains:
-        - id: Unique document identifier
-        - title: Document title
-        - semantic_score: Semantic similarity score (0-1)
-        - semantic_context: List of semantically related concepts
-        - matched_count: Number of semantic concepts matched
+        SemanticSearchResponse: Response containing semantic search results
     """
+    start_time = time.time()
+    
     # Simulated semantic search results
-    return [
+    raw_results = [
         {
             "id": "doc1",
             "title": "Understanding AI and Machine Learning Fundamentals",
@@ -83,3 +81,16 @@ def semanticSearch(query: str) -> List[Dict]:
             "content": "Comprehensive guide to reinforcement learning systems and their implementation in autonomous AI."
         }
     ]
+    
+    # Convert to SemanticSearchResult objects
+    results = [SemanticSearchResult(**item) for item in raw_results]
+    
+    # Calculate processing time
+    processing_time = (time.time() - start_time) * 1000
+    
+    # Create and return response
+    return SemanticSearchResponse(
+        results=results,
+        total=len(results),
+        processing_time_ms=processing_time
+    )

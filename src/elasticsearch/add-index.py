@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-import warnings
 import psycopg2
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.fields import Schema, TEXT, KEYWORD, ID, STORED
@@ -43,19 +42,19 @@ def get_index():
         if not os.path.exists(INDEX_DIR):
             os.makedirs(INDEX_DIR)
             ix = create_in(INDEX_DIR, schema)
-            logger.info(f"✅ Created new index directory: {INDEX_DIR}")
+            logger.info(f"Created new index directory: {INDEX_DIR}")
             return ix, True  # True indicates a new index
         elif not exists_in(INDEX_DIR):
             ix = create_in(INDEX_DIR, schema)
-            logger.info(f"✅ Created new index in existing directory: {INDEX_DIR}")
+            logger.info(f"Created new index in existing directory: {INDEX_DIR}")
             return ix, True  # True indicates a new index
         else:
             ix = open_dir(INDEX_DIR)
             doc_count = ix.doc_count()
-            logger.info(f"ℹ️ Using existing index with {doc_count} documents")
+            logger.info(f"ℹUsing existing index with {doc_count} documents")
             return ix, False  # False indicates using existing index
     except Exception as e:
-        logger.error(f"❌ Error accessing index: {e}")
+        logger.error(f" Error accessing index: {e}")
         sys.exit(1)
 
 
@@ -70,10 +69,10 @@ def connect_to_database():
             password=DB_CONFIG["password"],
             database=DB_CONFIG["database"]
         )
-        logger.info("✅ Successfully connected to PostgreSQL database")
+        logger.info("Successfully connected to PostgreSQL database")
         return conn
     except Exception as e:
-        logger.error(f"❌ Database connection error: {e}")
+        logger.error(f" Database connection error: {e}")
         raise
 
 
@@ -103,10 +102,10 @@ def fetch_documents_from_db():
                 documents.append(doc)
         
         conn.close()
-        logger.info(f"✅ Retrieved {len(documents)} documents from database")
+        logger.info(f"Retrieved {len(documents)} documents from database")
         return documents
     except Exception as e:
-        logger.error(f"❌ Error fetching documents from database: {e}")
+        logger.error(f" Error fetching documents from database: {e}")
         sys.exit(1)
 
 
@@ -137,9 +136,9 @@ def index_documents(ix, documents):
                 logger.warning(f"⚠️ Failed to index document id={doc['id']}: {e}")
 
         writer.commit()
-        logger.info(f"✅ Indexed {success} documents. Failed: {failed}")
+        logger.info(f" Indexed {success} documents. Failed: {failed}")
     except Exception as e:
-        logger.error(f"❌ Error indexing documents: {e}")
+        logger.error(f" Error indexing documents: {e}")
 
 
 # Load spaCy model for advanced search
@@ -180,7 +179,7 @@ def search_documents(query, size=5):
         results = searcher.search(q, limit=size)
 
         if not results:
-            print("⚠️ No results found.")
+            print(" No results found.")
             return
 
         seen_ids = set()
@@ -213,7 +212,7 @@ def export_index_info():
         for field_name, field_type in ix.schema.items():
             f.write(f"  - {field_name}: {field_type.__class__.__name__}\n")
 
-    logger.info(f"✅ Exported index information to index_info.txt")
+    logger.info(f" Exported index information to index_info.txt")
 
 
 # Main function
@@ -223,12 +222,12 @@ if __name__ == "__main__":
 
     # Only index documents if this is a new index
     if is_new_index:
-        logger.info("🔄 Creating new index, starting indexing process...")
+        logger.info(" Creating new index, starting indexing process...")
         documents = fetch_documents_from_db()
         index_documents(ix, documents)
         export_index_info()
     else:
-        logger.info("✅ Using existing index, skipping indexing step")
+        logger.info(" Using existing index, skipping indexing step")
 
     # Interactive search loop
     print("\n🔍 Search the document database")

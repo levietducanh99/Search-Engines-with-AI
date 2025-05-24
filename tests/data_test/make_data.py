@@ -7,7 +7,7 @@ def generate_vectors(input_csv_path, output_csv_path, model_name='all-MiniLM-L6-
     model = SentenceTransformer(model_name)
 
     # Đọc file CSV gốc
-    df = pd.read_csv(input_csv_path)
+    df = pd.read_csv(input_csv_path, quotechar='"', on_bad_lines='skip')
 
     # Gộp headline và short_description
     df['text'] = df['headline'].fillna('') + ". " + df['short_description'].fillna('')

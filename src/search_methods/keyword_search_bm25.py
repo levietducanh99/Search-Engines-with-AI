@@ -70,7 +70,7 @@ def keyword_search(query: str, page_size=1000):
 
     while True:
         # Fetch data in batches
-        response = supabase.table("WebScrapData").select("headline, keywords, proper_nouns").range(
+        response = supabase.table("WebScrapData").select("headline, keywords, keywords_proper_nouns").range(
             page * page_size, (page + 1) * page_size - 1
         ).execute()
 
@@ -87,8 +87,8 @@ def keyword_search(query: str, page_size=1000):
             db_tokens = [keyword.strip() for keyword in db_keywords.split(',')]
 
             # Include proper_nouns if query contains proper nouns and proper_nouns exist
-            if has_proper_noun and row.get("proper_nouns"):
-                db_proper_nouns = row["proper_nouns"].lower()
+            if has_proper_noun and row.get("keywords_proper_nouns"):
+                db_proper_nouns = row["keywords_proper_nouns"].lower()
                 proper_noun_tokens = [noun.strip() for noun in db_proper_nouns.split(',')]
                 db_tokens.extend(proper_noun_tokens)  # Combine keywords and proper nouns
 
@@ -98,7 +98,7 @@ def keyword_search(query: str, page_size=1000):
             documents.append({
                 "headline": row["headline"],
                 "keywords": row["keywords"],
-                "proper_nouns": row.get("proper_nouns", ""),
+                "keywords_proper_nouns": row.get("keywords_proper_nouns", ""),
                 "tokens": db_tokens
             })
 
@@ -160,7 +160,7 @@ def keyword_search(query: str, page_size=1000):
 
 if __name__ == "__main__":
     # Test the Keyword Search method with the WebScrapData table
-    query = "Arizona Cardinals health cold season"
+    query = "Comedian Robert Dubac Talks About Settling Down and Performing His One-Man Show"
     results, execution_time = keyword_search(query)
 
     print("\nKeyword Search Results from WebScrapData (BM25):")

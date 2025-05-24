@@ -1,21 +1,38 @@
-from fastapi import APIRouter, HTTPException  # Import APIRouter
-from src.models.search_models import SearchRequest, SearchResponse
+from fastapi import APIRouter, HTTPException
+from src.models.search_models import (
+    SearchRequest,
+    UnifiedSearchResponse
+)
 from src.services.search_pipeline import SearchPipeline
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter()  # Initialize the router
-search_pipeline = SearchPipeline()  # Initialize the search pipeline
+router = APIRouter()
+search_pipeline = SearchPipeline()
 
-@router.post("/search", response_model=SearchResponse)
+@router.post("/search", response_model=UnifiedSearchResponse)
 async def search(request: SearchRequest):
     """
-    API endpoint duy nhất cho toàn bộ quá trình tìm kiếm
+    API endpoint thống nhất cho tìm kiếm
+    Trả về 3 danh sách kết quả: từ khóa, ngữ nghĩa và kết quả RRF
     """
     try:
-        logger.info(f"Nhận yêu cầu tìm kiếm: {request.dict()}")  # Log request body
-        results = await search_pipeline.execute(request)
-        logger.info(f"Hoàn thành tìm kiếm. Tìm thấy {results.total} kết quả")
+        logger.info(f"Nhận yêu cầu tìm kiếm: {request.dict()}")
+        results = await search_pipeline.execute_search(request)
+        logger.info(
+            f"Hoàn thành tìm kiếm:\n"
+            f"1. Kết quả từ khóa:\n"
+            f"   - Số lượng: {results.total_keyword} kết quả\n"
+            f"   - Thời gian: {results.keyword_time_ms:.2f}ms\n"
+            f"2. Kết quả ngữ nghĩa:\n"
+            f"   - Số lượng: {results.total_semantic} kết quả\n"
+            f"   - Thời gian: {results.semantic_time_ms:.2f}ms\n"
+            f"3. Kết quả RRF:\n"
+            f"   - Số lượng: {results.total_rrf} kết quả\n"
+            f"   - Trang: {results.page}/{results.page_size}\n"
+            f"   - Thời gian: {results.rrf_time_ms:.2f}ms\n"
+            f"Tổng thời gian xử lý: {results.total_time_ms:.2f}ms"
+        )
         return results
     except Exception as e:
         logger.error(f"Lỗi tìm kiếm: {str(e)}")

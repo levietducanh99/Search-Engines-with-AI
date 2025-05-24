@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import ComplementNB
 from sklearn.metrics import classification_report, accuracy_score
 import logging
 
@@ -54,7 +54,7 @@ def train(data_path, save_dir, max_features=10000, ngram_range=(1, 2), alpha=1.0
     
     # Train Naive Bayes model
     logger.info(f"Training Multinomial Naive Bayes model with alpha={alpha}...")
-    model = MultinomialNB(alpha=alpha)
+    model = ComplementNB(alpha=alpha)
     model.fit(X_train, train_labels)
     
     # Evaluate the model
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     train(
         data_path=data_path,
         save_dir=save_dir,
-        max_features=10000,
+        max_features=100000,
         ngram_range=(1, 2),
-        alpha=0.1  # Lower alpha often works better for text classification
+        alpha=0.01  # Lower alpha often works better for text classification
     )

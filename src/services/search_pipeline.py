@@ -32,76 +32,36 @@ class SearchPipeline:
     def __init__(self,
                  index_dir: str = None,
                  model_name: str = "all-MiniLM-L6-v2",
-                 vector_path: str = "tests/data_test/vectors.npy",
-                 csv_path: str = "tests/data_test/vectors_clean.csv",
-                 data_path: str = "tests/data_test/WebScrapData_rows.csv"):
+                 vector_path: str = None,
+                 csv_path: str = None,
+                 data_path: str = None):
         """
         Khởi tạo pipeline với các thành phần cần thiết và đường dẫn đến dữ liệu
-
-        Args:
-            index_dir: Đường dẫn đến thư mục chứa index Whoosh
-            model_name: Tên mô hình sentence transformer
-            vector_path: Đường dẫn đến file vectors.npy
-            csv_path: Đường dẫn đến file vectors_clean.csv
-            data_path: Đường dẫn đến file dữ liệu WebScrapData_rows.csv
         """
-        # Tạo thư mục data nếu chưa tồn tại
-        os.makedirs("data", exist_ok=True)
 
-        # Kiểm tra và điều chỉnh đường dẫn cho Whoosh index
+        # Đường dẫn tương đối đến thư mục chứa file hiện tại
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Thiết lập thư mục index mặc định
         if index_dir is None:
-            # Thử các đường dẫn phổ biến
-            possible_index_paths = [
-                "G:\\AI\\Search-Engines-with-AI\\src\\elasticsearch\\whoosh_index",  # Absolute path
-                os.path.join(os.getcwd(), "src", "elasticsearch", "whoosh_index"),  # From current directory
-                os.path.join("src", "elasticsearch", "whoosh_index"),  # Relative path
-                "whoosh_index"  # Just the directory name
-            ]
-
-            for path in possible_index_paths:
-                if os.path.exists(path):
-                    self.index_dir = path
-                    logger.info(f"Found Whoosh index at: {path}")
-                    break
+            default_index_path = os.path.join(root_dir, "..", "elasticsearch", "whoosh_index")
+            if os.path.exists(default_index_path):
+                self.index_dir = default_index_path
+                logger.info(f"Found Whoosh index at: {default_index_path}")
             else:
-                self.index_dir = "whoosh_index"
-                logger.warning(f"Could not find Whoosh index, using default path: {self.index_dir}")
+                self.index_dir = os.path.join(root_dir, "whoosh_index")
+                logger.warning(f"Whoosh index not found, using fallback: {self.index_dir}")
         else:
             self.index_dir = index_dir
 
-        # Xác định đường dẫn đến data_test
-        base_paths = [
-            "G:\\AI\\Search-Engines-with-AI\\tests\\data_test",  # Absolute path
-            os.path.join(os.getcwd(), "tests", "data_test"),     # From current directory
-            "tests/data_test",                                  # Relative path 1
-            "data_test"                                         # Relative path 2
-        ]
+        # Thiết lập đường dẫn đến thư mục data_test
+        base_data_path = os.path.join(root_dir, "..", "..", "tests", "data_test")
+        if not os.path.exists(base_data_path):
+            base_data_path = os.path.join(root_dir, "..", "data_test")
 
-        self.base_path = None
-        for path in base_paths:
-            if os.path.exists(path):
-                self.base_path = path
-                logger.info(f"Found test data directory at: {path}")
-                break
-
-        if self.base_path is None:
-            self.base_path = "tests/data_test"
-            logger.warning(f"Could not find test data directory, using default: {self.base_path}")
-
-        # Thiết lập đường dẫn cho files
-        self.vector_path = os.path.join(self.base_path, "vectors.npy")
-        self.csv_path = os.path.join(self.base_path, "vectors_clean.csv")
-        self.data_path = os.path.join(self.base_path, "WebScrapData_rows.csv")
-
-        # Kiểm tra từng file, sử dụng đường dẫn được cung cấp nếu tồn tại
-        if not os.path.exists(self.vector_path) and os.path.exists(vector_path):
-            self.vector_path = vector_path
-
-        if not os.path.exists(self.csv_path) and os.path.exists(csv_path):
-            self.csv_path = csv_path
-
-        if not os.path.exists(self.data_path) and os.path.exists(data_path):
-            self.data_path = data_path
+        self.vector_path = vector_path or os.path.join(base_data_path, "vectors.npy")
+        self.csv_path = csv_path or os.path.join(base_data_path, "vectors_clean.csv")
+        self.data_path = data_path or os.path.join(base_data_path, "WebScrapData_rows.csv")
 
         # Log thông tin đường dẫn cuối cùng
         logger.info(f"Using vector file: {self.vector_path}")

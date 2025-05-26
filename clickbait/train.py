@@ -52,8 +52,8 @@ def add_clickbait_features(df):
 def load_and_prepare_data():
     """Load and prepare data from CSV files"""
     # Load datasets
-    fake_df = pd.read_csv('fake.csv')
-    true_df = pd.read_csv('true.csv')
+    fake_df = pd.read_csv('Fake.csv')
+    true_df = pd.read_csv('True.csv')
 
     # Add labels (1 for fake, 0 for true)
     fake_df['label'] = 1

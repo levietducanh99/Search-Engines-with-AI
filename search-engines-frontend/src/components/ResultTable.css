@@ -1,0 +1,95 @@
+.results-container {
+  margin: 20px 0;
+  overflow-x: auto;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.results-table th,
+.results-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.results-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.result-row:hover {
+  background: #f8f9fa;
+}
+
+.title-cell {
+  font-weight: 500;
+  color: #1a73e8;
+  min-width: 200px;
+}
+
+.content-cell {
+  min-width: 300px;
+  max-width: 400px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.score-cell {
+  text-align: right;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.rank-cell {
+  text-align: center;
+  font-weight: 500;
+}
+
+.keywords-list,
+.context-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.keyword-tag,
+.context-tag {
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.keyword-tag {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.context-tag {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.no-results {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+  

@@ -1,16 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.search_api import router as search_router
 import logging
+from src.api.search_api import router as search_router
 
-# Cấu hình logging
+# Thiết lập logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger(__name__)
 
-# Tạo FastAPI app
+# Khởi tạo FastAPI app
 app = FastAPI(
     title="Search Engine API",
     description="API cho tìm kiếm kết hợp từ khóa và ngữ nghĩa",
@@ -20,26 +19,34 @@ app = FastAPI(
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=["*"],  # Cho phép tất cả các origin trong môi trường development
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Đăng ký router
-app.include_router(search_router)  # Removed the prefix="/api" to avoid duplication
+# Thêm router
+app.include_router(search_router, prefix="/api/v1", tags=["search"])
 
-@app.on_event("startup")
-async def startup_event():
+@app.get("/")
+async def root():
     """
-    Khởi tạo services khi khởi động
+    Endpoint kiểm tra server có hoạt động không
     """
-    logger.info("Đang khởi động Search Engine API...")
+    return {
+        "status": "ok",
+        "message": "Search Engine API đang chạy",
+        "version": "1.0.0",
+        "docs_url": "/docs"  # URL đến Swagger UI
+    }
 
-@app.get("/health")
-async def health_check():
-    """
-    Endpoint kiểm tra trạng thái
-    """
-    return {"status": "healthy"}
+# Nếu chạy trực tiếp file này
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True  # Tự động reload khi có thay đổi code
+    )
 

@@ -108,12 +108,13 @@ def train_clickbait_model():
             verbose=1
         ),
         ModelCheckpoint(
-            filepath='weights.h5',
+            filepath='model.weights.h5',
             monitor='val_accuracy',
             mode='max',
             save_best_only=True,
             save_weights_only=True,
-            verbose=1
+            verbose=1,
+            initial_value_threshold=0.0
         )
     ]
 

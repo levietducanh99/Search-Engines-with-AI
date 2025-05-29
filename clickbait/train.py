@@ -129,8 +129,8 @@ def train_clickbait_model():
     )
 
     # Load best weights and save model
-    model.load_weights('weights.h5')
-    model.save('clickbait_model')
+    model.load_weights('model.weights.h5')
+    model.save('clickbait_model.h5')
 
     # Save tokenizer for predictions
     joblib.dump(tokenizer, 'tokenizer.pkl')

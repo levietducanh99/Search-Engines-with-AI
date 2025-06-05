@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SearchBar from './components/SearchBar';
 import ResultsTable from './components/ResultsTable';
+import ResultDetailModal from './components/ResultDetailModal';
 import { searchService } from './api/searchService';
 import './App.css';
 
@@ -15,10 +16,24 @@ function App() {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedResult, setSelectedResult] = useState(null);
+  
+  // Function to open the detail modal
+  const handleResultClick = (result) => {
+    setSelectedResult(result);
+  };
+
+  // Function to close the detail modal
+  const handleCloseDetail = () => {
+    setSelectedResult(null);
+  };
 
   const handleSearch = async (query) => {
     setLoading(true);
     setError(null);
+    setSearchQuery(query);
+    
     try {
       let data;
       if (searchType === 'full') {
@@ -47,15 +62,16 @@ function App() {
   const handlePageChange = (newPage) => {
     setPage(newPage);
     // Trigger search again with new page
-    if (results.rrf_results.length > 0) {
-      handleSearch(results.rrf_results[0].query);
+    if (searchQuery) {
+      handleSearch(searchQuery);
     }
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
+    <div className="App">
+      <header className="App-header">
         <h1>Tìm kiếm thông minh</h1>
+        <p>Hệ thống tìm kiếm kết hợp từ khóa và ngữ nghĩa</p>
       </header>
       <main className="app-main">
         <SearchBar onSearch={handleSearch} />
@@ -79,34 +95,38 @@ function App() {
 
         {searchType === 'full' ? (
           <>
-            <h2>Kết quả từ khóa</h2>
+            <h2 className="section-header">Kết quả từ khóa</h2>
             <ResultsTable
               results={results.keyword_results}
               loading={loading}
               type="keyword"
+              onResultClick={handleResultClick}
             />
 
-            <h2>Kết quả ngữ nghĩa</h2>
+            <h2 className="section-header">Kết quả ngữ nghĩa</h2>
             <ResultsTable
               results={results.semantic_results}
               loading={loading}
               type="semantic"
+              onResultClick={handleResultClick}
             />
 
-            <h2>Kết quả kết hợp (RRF)</h2>
+            <h2 className="section-header">Kết quả kết hợp (RRF)</h2>
             <ResultsTable
               results={results.rrf_results}
               loading={loading}
               type="rrf"
+              onResultClick={handleResultClick}
             />
           </>
         ) : (
           <>
-            <h2>Kết quả RRF</h2>
+            <h2 className="section-header">Kết quả RRF</h2>
             <ResultsTable
               results={results.rrf_results}
               loading={loading}
               type="rrf"
+              onResultClick={handleResultClick}
             />
           </>
         )}
@@ -127,6 +147,15 @@ function App() {
               Trang sau
             </button>
           </div>
+        )}
+        
+        {/* Detail view modal */}
+        {selectedResult && (
+          <ResultDetailModal 
+            result={selectedResult} 
+            onClose={handleCloseDetail} 
+            resultType={searchType === 'full' ? 'combined' : 'rrf'} 
+          />
         )}
       </main>
     </div>

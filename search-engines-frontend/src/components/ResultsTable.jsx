@@ -1,7 +1,49 @@
 import React from "react";
-import "./ResultTable.css"; // tạo thêm file css riêng nếu muốn
+import "./ResultTable.css";
+import PropTypes from "prop-types";
 
-const ResultsTable = ({ results, loading, type }) => {
+// Helper function to highlight proper nouns in text
+const highlightProperNouns = (text) => {
+  if (!text) return '';
+
+  // Simple regex to identify proper nouns (words that start with a capital letter)
+  // Not perfect but will catch most basic proper nouns
+  const properNounRegex = /\b[A-Z][a-z]+\b/g;
+
+  return text.replace(properNounRegex, match => {
+    return `<span class="highlight-proper-noun">${match}</span>`;
+  });
+};
+
+// Render content with proper nouns highlighted
+const RenderContentWithHighlight = ({ content }) => {
+  if (!content) return <span>-</span>;
+
+  const highlightedContent = highlightProperNouns(content);
+  return <div dangerouslySetInnerHTML={{ __html: highlightedContent }} />;
+};
+
+// Render rank badge with special styling based on ranking position
+const RenderRankBadge = ({ ranking }) => {
+  if (!ranking && ranking !== 0) return <span>-</span>;
+
+  let badgeClass = 'rank-badge';
+
+  // Special styling for top 3 positions
+  if (ranking === 1) {
+    badgeClass += ' rank-badge-1';
+  } else if (ranking === 2) {
+    badgeClass += ' rank-badge-2';
+  } else if (ranking === 3) {
+    badgeClass += ' rank-badge-3';
+  } else {
+    badgeClass += ' rank-badge-other';
+  }
+
+  return <div className={badgeClass}>{ranking}</div>;
+};
+
+const ResultsTable = ({ results, loading, type, onResultClick }) => {
   if (loading) {
     return <div className="loading">Đang tìm kiếm...</div>;
   }
@@ -54,9 +96,11 @@ const ResultsTable = ({ results, loading, type }) => {
     switch (type) {
       case 'keyword':
         return (
-          <tr key={result.id} className="result-row">
+          <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
             <td className="title-cell">{result.title}</td>
-            <td className="content-cell">{result.content}</td>
+            <td className="content-cell">
+              <RenderContentWithHighlight content={result.content} />
+            </td>
             <td className="score-cell">{result.bm25_score?.toFixed(2) || '-'}</td>
             <td className="keywords-cell">
               {result.keywords ? (
@@ -74,9 +118,11 @@ const ResultsTable = ({ results, loading, type }) => {
         );
       case 'semantic':
         return (
-          <tr key={result.id} className="result-row">
+          <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
             <td className="title-cell">{result.title}</td>
-            <td className="content-cell">{result.content}</td>
+            <td className="content-cell">
+              <RenderContentWithHighlight content={result.content} />
+            </td>
             <td className="score-cell">
               {result.semantic_score ? (result.semantic_score * 100).toFixed(1) + '%' : '-'}
             </td>
@@ -96,15 +142,19 @@ const ResultsTable = ({ results, loading, type }) => {
         );
       case 'rrf':
         return (
-          <tr key={result.id} className="result-row">
+          <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
             <td className="title-cell">{result.title}</td>
-            <td className="content-cell">{result.content}</td>
+            <td className="content-cell">
+              <RenderContentWithHighlight content={result.content} />
+            </td>
             <td className="score-cell">{result.bm25_score?.toFixed(2) || '-'}</td>
             <td className="score-cell">
               {result.semantic_score ? (result.semantic_score * 100).toFixed(1) + '%' : '-'}
             </td>
             <td className="score-cell">{result.rrf_score?.toFixed(2) || '-'}</td>
-            <td className="rank-cell">{result.ranking || '-'}</td>
+            <td className="rank-cell">
+              <RenderRankBadge ranking={result.ranking} />
+            </td>
             <td className="keywords-cell">
               {result.keywords ? (
                 <div className="keywords-list">
@@ -142,8 +192,18 @@ const ResultsTable = ({ results, loading, type }) => {
           {results.map(renderResultRow)}
         </tbody>
       </table>
+      <div className="results-info">
+        <p>Nhấp vào một kết quả để xem thêm chi tiết</p>
+      </div>
     </div>
   );
+};
+
+ResultsTable.propTypes = {
+  results: PropTypes.array.isRequired,
+  loading: PropTypes.bool.isRequired,
+  type: PropTypes.string.isRequired,
+  onResultClick: PropTypes.func.isRequired
 };
 
 export default ResultsTable;

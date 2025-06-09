@@ -2,25 +2,51 @@ import React from "react";
 import "./ResultTable.css";
 import PropTypes from "prop-types";
 
-// Helper function to highlight proper nouns in text
-const highlightProperNouns = (text) => {
-  if (!text) return '';
+// Danh sách các stopwords phổ biến cần loại bỏ khi highlight
+const stopwords = [
+  "a", "an", "and", "are", "as", "at", "be", "but", "by", "for",
+  "if", "in", "into", "is", "it", "no", "not", "of", "on", "or",
+  "such", "that", "the", "their", "then", "there", "these", "they",
+  "this", "to", "was", "will", "with", "has", "have", "had"
+];
 
-  // Simple regex to identify proper nouns (words that start with a capital letter)
-  // Not perfect but will catch most basic proper nouns
-  const properNounRegex = /\b[A-Z][a-z]+\b/g;
+// Helper function to highlight query terms in text
+const highlightQueryTerms = (text, query) => {
+  if (!text || !query) return text || '';
 
-  return text.replace(properNounRegex, match => {
-    return `<span class="highlight-proper-noun">${match}</span>`;
+  // Xử lý truy vấn để lấy các từ khóa cần highlight
+  const queryTerms = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(term => term.length > 2) // Bỏ qua các từ quá ngắn
+    .filter(term => !stopwords.includes(term.toLowerCase())) // Loại bỏ stopwords
+    .map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape các ký tự đặc biệt
+
+  if (queryTerms.length === 0) return text;
+
+  // Tạo regex để tìm các từ khóa (không phân biệt hoa thường)
+  const queryRegex = new RegExp(`\\b(${queryTerms.join('|')})\\b`, 'gi');
+
+  // Thay thế các từ khóa bằng phiên bản được gạch chân
+  return text.replace(queryRegex, match => {
+    return `<span class="highlight-query-term">${match}</span>`;
   });
 };
 
-// Render content with proper nouns highlighted
-const RenderContentWithHighlight = ({ content }) => {
+// Render content with query terms highlighted
+const RenderContentWithHighlight = ({ content, query }) => {
   if (!content) return <span>-</span>;
 
-  const highlightedContent = highlightProperNouns(content);
+  const highlightedContent = highlightQueryTerms(content, query);
   return <div dangerouslySetInnerHTML={{ __html: highlightedContent }} />;
+};
+
+// Render title with query terms highlighted
+const RenderTitleWithHighlight = ({ title, query }) => {
+  if (!title) return <span>-</span>;
+
+  const highlightedTitle = highlightQueryTerms(title, query);
+  return <div dangerouslySetInnerHTML={{ __html: highlightedTitle }} />;
 };
 
 // Render rank badge with special styling based on ranking position
@@ -43,7 +69,7 @@ const RenderRankBadge = ({ ranking }) => {
   return <div className={badgeClass}>{ranking}</div>;
 };
 
-const ResultsTable = ({ results, loading, type, onResultClick }) => {
+const ResultsTable = ({ results, loading, type, onResultClick, query }) => {
   if (loading) {
     return <div className="loading">Đang tìm kiếm...</div>;
   }
@@ -70,8 +96,6 @@ const ResultsTable = ({ results, loading, type, onResultClick }) => {
             <th>Tiêu đề</th>
             <th>Nội dung</th>
             <th>Điểm ngữ nghĩa</th>
-            <th>Ngữ cảnh</th>
-            <th>Số khái niệm khớp</th>
           </tr>
         );
       case 'rrf':
@@ -97,9 +121,11 @@ const ResultsTable = ({ results, loading, type, onResultClick }) => {
       case 'keyword':
         return (
           <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
-            <td className="title-cell">{result.title}</td>
+            <td className="title-cell">
+              <RenderTitleWithHighlight title={result.title} query={query} />
+            </td>
             <td className="content-cell">
-              <RenderContentWithHighlight content={result.content} />
+              <RenderContentWithHighlight content={result.content} query={query} />
             </td>
             <td className="score-cell">{result.bm25_score?.toFixed(2) || '-'}</td>
             <td className="keywords-cell">
@@ -119,33 +145,25 @@ const ResultsTable = ({ results, loading, type, onResultClick }) => {
       case 'semantic':
         return (
           <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
-            <td className="title-cell">{result.title}</td>
+            <td className="title-cell">
+              <RenderTitleWithHighlight title={result.title} query={query} />
+            </td>
             <td className="content-cell">
-              <RenderContentWithHighlight content={result.content} />
+              <RenderContentWithHighlight content={result.content} query={query} />
             </td>
             <td className="score-cell">
               {result.semantic_score ? (result.semantic_score * 100).toFixed(1) + '%' : '-'}
             </td>
-            <td className="context-cell">
-              {result.semantic_context ? (
-                <div className="context-list">
-                  {result.semantic_context.map((context, index) => (
-                    <span key={index} className="context-tag">
-                      {context}
-                    </span>
-                  ))}
-                </div>
-              ) : '-'}
-            </td>
-            <td className="count-cell">{result.matched_count || '-'}</td>
           </tr>
         );
       case 'rrf':
         return (
           <tr key={result.id} className="result-row" onClick={() => onResultClick(result)}>
-            <td className="title-cell">{result.title}</td>
+            <td className="title-cell">
+              <RenderTitleWithHighlight title={result.title} query={query} />
+            </td>
             <td className="content-cell">
-              <RenderContentWithHighlight content={result.content} />
+              <RenderContentWithHighlight content={result.content} query={query} />
             </td>
             <td className="score-cell">{result.bm25_score?.toFixed(2) || '-'}</td>
             <td className="score-cell">
@@ -203,7 +221,8 @@ ResultsTable.propTypes = {
   results: PropTypes.array.isRequired,
   loading: PropTypes.bool.isRequired,
   type: PropTypes.string.isRequired,
-  onResultClick: PropTypes.func.isRequired
+  onResultClick: PropTypes.func.isRequired,
+  query: PropTypes.string.isRequired
 };
 
 export default ResultsTable;

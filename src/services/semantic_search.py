@@ -146,21 +146,12 @@ class SemanticSearch:
             doc_id = str(corpus_ids[hit['corpus_id']])
             doc_info = document_info.get(doc_id, {})
             
-            # Tạo ngữ cảnh ngữ nghĩa từ thông tin tài liệu
-            semantic_context = []
-            if 'category' in doc_info and doc_info['category']:
-                semantic_context.append(f"Category: {doc_info['category']}")
-            if 'keywords_proper_nouns' in doc_info and doc_info['keywords_proper_nouns']:
-                semantic_context.append(f"Keywords: {doc_info['keywords_proper_nouns']}")
-            
-            # Tạo đối tượng kết quả
+            # Tạo đối tượng kết quả - đã loại bỏ semantic_context và matched_count
             result = SemanticSearchResult(
                 id=doc_id,
                 title=doc_info.get('headline', 'Unknown Title'),
                 content=str(doc_info.get('short_description') or ''),
-                semantic_score=float(hit['score']),
-                semantic_context=semantic_context,
-                matched_count=len(semantic_context)
+                semantic_score=float(hit['score'])
             )
             semantic_results.append(result)
         

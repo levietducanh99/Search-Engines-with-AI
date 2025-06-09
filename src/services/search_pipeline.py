@@ -44,7 +44,7 @@ class SearchPipeline:
         # Đảm bảo đường dẫn index giống file find-use-whoosh.py
         if index_dir is None:
             # Đường dẫn index chuẩn
-            default_index_path = os.path.abspath(os.path.join(root_dir, "..", "elasticsearch", "whoosh_index"))
+            default_index_path = os.path.abspath(os.path.join(root_dir, "..", "keyword-search", "whoosh_index"))
             if os.path.exists(default_index_path):
                 self.index_dir = default_index_path
                 logger.info(f"[KeywordSearch] Using Whoosh index at: {default_index_path}")

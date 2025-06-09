@@ -101,6 +101,7 @@ function App() {
               loading={loading}
               type="keyword"
               onResultClick={handleResultClick}
+              query={searchQuery}
             />
 
             <h2 className="section-header">Kết quả ngữ nghĩa</h2>
@@ -109,6 +110,7 @@ function App() {
               loading={loading}
               type="semantic"
               onResultClick={handleResultClick}
+              query={searchQuery}
             />
 
             <h2 className="section-header">Kết quả kết hợp (RRF)</h2>
@@ -117,16 +119,18 @@ function App() {
               loading={loading}
               type="rrf"
               onResultClick={handleResultClick}
+              query={searchQuery}
             />
           </>
         ) : (
           <>
-            <h2 className="section-header">Kết quả RRF</h2>
+            <h2 className="section-header">Kết quả kết hợp (RRF)</h2>
             <ResultsTable
               results={results.rrf_results}
               loading={loading}
               type="rrf"
               onResultClick={handleResultClick}
+              query={searchQuery}
             />
           </>
         )}
@@ -155,6 +159,7 @@ function App() {
             result={selectedResult} 
             onClose={handleCloseDetail} 
             resultType={searchType === 'full' ? 'combined' : 'rrf'} 
+            query={searchQuery}
           />
         )}
       </main>

@@ -49,9 +49,20 @@
   min-width: 300px;
   max-width: 400px;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.5;
   color: #444;
+}
+
+/* CSS cho việc highlight từ khóa truy vấn */
+.highlight-query-term {
+  background-color: #e3f2fd;
+  background-image: linear-gradient(to right, #bbdefb 0%, #e3f2fd 100%);
+  font-weight: bold;
+  text-decoration: underline;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
 .score-cell {

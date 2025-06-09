@@ -25,8 +25,7 @@ class KeywordSearchResponse(BaseModel):
 class SemanticSearchResult(BaseSearchResult):
     """Model cho kết quả tìm kiếm ngữ nghĩa"""
     semantic_score: float = Field(..., ge=0.0, le=1.0, description="Điểm ngữ nghĩa")
-    semantic_context: List[str] = Field(..., description="Ngữ cảnh ngữ nghĩa")
-    matched_count: int = Field(..., ge=0, description="Số khái niệm ngữ nghĩa khớp")
+    # Đã loại bỏ semantic_context và matched_count
 
 class SemanticSearchResponse(BaseModel):
     """Model cho phản hồi tìm kiếm ngữ nghĩa"""

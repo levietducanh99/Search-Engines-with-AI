@@ -67,21 +67,17 @@ class RRFMerger:
             doc_id = result.id
             scores[doc_id] = scores.get(doc_id, 0) + 1 / (self.k + rank)
             
-            # Lưu thông tin tài liệu và điểm semantic
+            # Lưu thông tin tài liệu và điểm semantic - đã loại bỏ semantic_context và matched_count
             if doc_id not in documents:
                 documents[doc_id] = {
                     "id": doc_id,
                     "title": result.title,
                     "content": result.content,
-                    "semantic_score": result.semantic_score,
-                    "semantic_context": result.semantic_context,
-                    "semantic_matched_count": result.matched_count
+                    "semantic_score": result.semantic_score
                 }
             else:
                 documents[doc_id]["semantic_score"] = result.semantic_score
-                documents[doc_id]["semantic_context"] = result.semantic_context
-                documents[doc_id]["semantic_matched_count"] = result.matched_count
-        
+
         # Sắp xếp theo điểm RRF giảm dần
         sorted_doc_ids = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         
@@ -90,7 +86,8 @@ class RRFMerger:
         for rank, (doc_id, rrf_score) in enumerate(sorted_doc_ids, 1):
             doc_info = documents[doc_id]
             
-            # Tạo đối tượng CombinedSearchResult
+            # Tạo đối tượng CombinedSearchResult - đã loại bỏ tham số semantic_context,
+            # và sửa lại matched_count để chỉ dựa vào keyword_matched_count
             result = CombinedSearchResult(
                 id=doc_id,
                 title=doc_info.get("title", "Unknown"),
@@ -100,11 +97,8 @@ class RRFMerger:
                 rrf_score=rrf_score,
                 ranking=rank,
                 keywords=doc_info.get("keywords", None),
-                semantic_context=doc_info.get("semantic_context", None),
-                matched_count=max(
-                    doc_info.get("keyword_matched_count", 0),
-                    doc_info.get("semantic_matched_count", 0)
-                )
+                semantic_context=None,  # Thiết lập semantic_context là None
+                matched_count=doc_info.get("keyword_matched_count", 0)  # Chỉ dựa vào keyword_matched_count
             )
             combined_results.append(result)
         
